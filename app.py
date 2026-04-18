@@ -24,6 +24,7 @@ app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=8)
 # ========== CORS - Atualizar com sua URL do Vercel ==========
 CORS(app, origins=[
     'https://saude-nampula-c9az.vercel.app',  # 👈 SUBSTITUA PELA URL DO SEU FRONTEND
+    'https://saude-nampula-api.onrender.com',
     'http://localhost:5500',
     'http://localhost:5501',
     'http://127.0.0.1:5500',
