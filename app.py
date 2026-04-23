@@ -354,8 +354,8 @@ def get_estatisticas():
 
 # ==================== ADMIN LOGIN ====================
 
-ADMIN_USERNAME = "admin"
-ADMIN_PASSWORD_HASH = bcrypt.generate_password_hash("admin123").decode('utf-8')
+ADMIN_USERNAME = "saudemz"
+ADMIN_PASSWORD_HASH = bcrypt.generate_password_hash("197827").decode('utf-8')
 
 @app.route('/api/admin/login', methods=['POST'])
 def admin_login():
