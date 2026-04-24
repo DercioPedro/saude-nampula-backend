@@ -118,6 +118,8 @@ def create_farmacia():
         telefone=data.get('telefone', ''),
         horario=data.get('horario', ''),
         plantao=data.get('plantao', False)
+        latitude=data.get('latitude'),      # ADICIONAR
+        longitude=data.get('longitude')     # ADICIONAR
     )
     
     db.session.add(farmacia)
@@ -136,6 +138,7 @@ def update_farmacia(id):
     farmacia.telefone = data.get('telefone', farmacia.telefone)
     farmacia.horario = data.get('horario', farmacia.horario)
     farmacia.plantao = data.get('plantao', farmacia.plantao)
+    
 
 
      # ADICIONE ESTAS LINHAS:
@@ -240,7 +243,16 @@ def create_hospital():
         telefone=data.get('telefone', ''),
         horario=data.get('horario', ''),
         servicos=data.get('servicos', '')
+        latitude=data.get('latitude'),      # ADICIONAR
+        longitude=data.get('longitude')     # ADICIONAR
     )
+
+     # ADICIONAR ESTAS LINHAS:
+    if 'latitude' in data:
+        hospital.latitude = data['latitude']
+    if 'longitude' in data:
+        hospital.longitude = data['longitude']
+        
     db.session.add(hospital)
     db.session.commit()
     return jsonify(hospital.to_dict()), 201
@@ -285,7 +297,16 @@ def create_centro():
         telefone=data.get('telefone', ''),
         horario=data.get('horario', ''),
         servicos=data.get('servicos', '')
+        latitude=data.get('latitude'),      # ADICIONAR
+        longitude=data.get('longitude')     # ADICIONAR
     )
+
+    # ADICIONAR ESTAS LINHAS:
+    if 'latitude' in data:
+        centro.latitude = data['latitude']
+    if 'longitude' in data:
+        centro.longitude = data['longitude']
+        
     db.session.add(centro)
     db.session.commit()
     return jsonify(centro.to_dict()), 201
