@@ -136,6 +136,13 @@ def update_farmacia(id):
     farmacia.telefone = data.get('telefone', farmacia.telefone)
     farmacia.horario = data.get('horario', farmacia.horario)
     farmacia.plantao = data.get('plantao', farmacia.plantao)
+
+
+     # ADICIONE ESTAS LINHAS:
+    if 'latitude' in data:
+        farmacia.latitude = data['latitude']
+    if 'longitude' in data:
+        farmacia.longitude = data['longitude']
     
     db.session.commit()
     return jsonify(farmacia.to_dict())
