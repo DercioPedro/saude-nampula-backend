@@ -4,10 +4,11 @@ from flask_cors import CORS
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
 from datetime import datetime, timedelta
 from models import db, bcrypt, Farmacia, Produto, Hospital, CentroSaude, Emergencia, Avaliacao, Visitante, EstatisticaVisita
+from geopy.geocoders import Nominatim
 
 app = Flask(__name__)
 
-# ========== CONFIGURAÇÕES - MUDAR AQUI ==========
+# ========== CONFIGURAÇÕES ==========
 # Pegar a URL do banco do ambiente (Render fornece) ou usar SQLite local
 database_url = os.environ.get('DATABASE_URL', 'sqlite:///database.db')
 
@@ -21,9 +22,9 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['JWT_SECRET_KEY'] = os.environ.get('JWT_SECRET_KEY', 'jwt-chave-secreta-local')
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=8)
 
-# ========== CORS - Atualizar com sua URL do Vercel ==========
+# ========== CORS ==========
 CORS(app, origins=[
-    'https://saude-nampula-c9az.vercel.app',  # 👈 SUBSTITUA PELA URL DO SEU FRONTEND
+    'https://saude-nampula-c9az.vercel.app',
     'https://saude-nampula-api.onrender.com',
     'http://localhost:5500',
     'http://localhost:5501',
@@ -34,6 +35,9 @@ CORS(app, origins=[
 jwt = JWTManager(app)
 db.init_app(app)
 bcrypt.init_app(app)
+
+# Cache para geocodificação (evita múltiplas requisições)
+geocode_cache = {}
 
 # Criar banco de dados
 with app.app_context():
@@ -181,7 +185,7 @@ def create_produto():
     
     return jsonify(produto.to_dict()), 201
 
-@app.route('/api/produtos/<int:id>', methods=['PUT'])
+@app.route('/api/produtos/<int:id>', methods(['PUT'])
 def update_produto(id):
     """Atualizar produto"""
     produto = Produto.query.get_or_404(id)
@@ -373,10 +377,7 @@ def admin_login():
     
     return jsonify({'error': 'Credenciais inválidas'}), 401
 
-
-
-
-# ==================== API DE AVALIAÇÕES (COMPLETO) ====================
+# ==================== API DE AVALIAÇÕES ====================
 
 @app.route('/api/avaliacoes', methods=['GET'])
 def get_avaliacoes():
@@ -509,15 +510,11 @@ def registrar_visita():
     """Registrar visita à página"""
     data = request.get_json()
     
-    # Obter IP
     ip = request.remote_addr
-    
-    # Obter sessão (do localStorage)
     sessao_id = data.get('sessao_id')
     pagina = data.get('pagina', 'desconhecida')
     user_agent = request.headers.get('User-Agent', '')
     
-    # Registrar visita
     visita = Visitante(
         ip=ip,
         pagina=pagina,
@@ -526,7 +523,6 @@ def registrar_visita():
     )
     db.session.add(visita)
     
-    # Atualizar estatísticas diárias
     hoje = datetime.utcnow().date()
     estatistica = EstatisticaVisita.query.filter_by(data=hoje).first()
     
@@ -534,7 +530,6 @@ def registrar_visita():
         estatistica = EstatisticaVisita(data=hoje, visitantes_unicos=0, visualizacoes=0)
         db.session.add(estatistica)
     
-    # Contar visitantes únicos por sessão
     visitas_hoje = Visitante.query.filter(
         Visitante.data_hora >= datetime(hoje.year, hoje.month, hoje.day)
     ).all()
@@ -567,7 +562,6 @@ def get_estatisticas_visitantes():
             'visualizacoes': e.visualizacoes
         })
     
-    # Total geral
     total_visitas = Visitante.query.count()
     total_sessoes = len(set(v.sessao_id for v in Visitante.query.all() if v.sessao_id))
     
@@ -589,6 +583,42 @@ def get_paginas_mais_acessadas():
     ).group_by(Visitante.pagina).order_by(func.count(Visitante.id).desc()).limit(10).all()
     
     return jsonify([{'pagina': p[0], 'total': p[1]} for p in paginas])
+
+# ==================== API DE GEOCODIFICAÇÃO ====================
+
+@app.route('/api/geocode', methods=['POST'])
+def geocode_endereco():
+    """Converter endereço em coordenadas"""
+    data = request.get_json()
+    endereco = data.get('endereco')
+    
+    if not endereco:
+        return jsonify({'error': 'Endereço não informado'}), 400
+    
+    # Verificar cache
+    if endereco in geocode_cache:
+        return jsonify(geocode_cache[endereco])
+    
+    try:
+        geolocator = Nominatim(user_agent="saude_nampula")
+        # Adicionar "Nampula, Moçambique" para contexto
+        endereco_completo = f"{endereco}, Nampula, Moçambique"
+        location = geolocator.geocode(endereco_completo)
+        
+        if location:
+            resultado = {
+                'success': True,
+                'latitude': location.latitude,
+                'longitude': location.longitude
+            }
+            # Salvar no cache
+            geocode_cache[endereco] = resultado
+            return jsonify(resultado)
+        else:
+            return jsonify({'success': False, 'error': 'Endereço não encontrado'}), 404
+            
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 # ==================== INICIAR SERVIDOR ====================
 
