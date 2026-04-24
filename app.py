@@ -8,11 +8,9 @@ from geopy.geocoders import Nominatim
 
 app = Flask(__name__)
 
-# ========== CONFIGURAÇÕES ==========
-# Pegar a URL do banco do ambiente (Render fornece) ou usar SQLite local
+# ========== CONFIGURACOES ==========
 database_url = os.environ.get('DATABASE_URL', 'sqlite:///database.db')
 
-# CORREÇÃO: O Render usa 'postgres://' mas o SQLAlchemy precisa de 'postgresql://'
 if database_url and database_url.startswith('postgres://'):
     database_url = database_url.replace('postgres://', 'postgresql://', 1)
 
@@ -36,41 +34,36 @@ jwt = JWTManager(app)
 db.init_app(app)
 bcrypt.init_app(app)
 
-# Cache para geocodificação (evita múltiplas requisições)
 geocode_cache = {}
 
-# Criar banco de dados
 with app.app_context():
     db.create_all()
-    print(f"✅ Banco de dados conectado: {database_url[:50]}...")
+    print("Banco de dados conectado: " + database_url[:50] + "...")
 
-# ==================== API DE FARMÁCIAS ====================
+# ==================== API DE FARMACIAS ====================
 
 @app.route('/api/farmacias', methods=['GET'])
 def get_farmacias():
-    """Listar todas as farmácias"""
     farmacias = Farmacia.query.all()
     return jsonify([f.to_dict() for f in farmacias])
 
 @app.route('/api/farmacias/<int:id>', methods=['GET'])
 def get_farmacia(id):
-    """Obter uma farmácia específica"""
     farmacia = Farmacia.query.get_or_404(id)
     return jsonify(farmacia.to_dict())
 
 @app.route('/api/farmacias/login', methods=['POST'])
 def login_farmacia():
-    """Login da farmácia"""
     data = request.get_json()
     farmacia_id = data.get('farmaciaId')
     senha = data.get('senha')
     
     farmacia = Farmacia.query.get(farmacia_id)
     if not farmacia:
-        return jsonify({'error': 'Farmácia não encontrada'}), 404
+        return jsonify({'error': 'Farmacia nao encontrada'}), 404
     
     if not farmacia.senha_hash:
-        return jsonify({'error': 'Farmácia sem senha cadastrada. Faça primeiro acesso.'}), 401
+        return jsonify({'error': 'Farmacia sem senha cadastrada. Faca primeiro acesso.'}), 401
     
     if farmacia.check_senha(senha):
         access_token = create_access_token(identity=str(farmacia.id))
@@ -84,17 +77,16 @@ def login_farmacia():
 
 @app.route('/api/farmacias/<int:id>/senha', methods=['POST'])
 def definir_senha_farmacia(id):
-    """Definir senha da farmácia (primeiro acesso)"""
     data = request.get_json()
     senha = data.get('senha')
     
     if not senha or len(senha) < 4:
-        return jsonify({'error': 'Senha deve ter no mínimo 4 caracteres'}), 400
+        return jsonify({'error': 'Senha deve ter no minimo 4 caracteres'}), 400
     
     farmacia = Farmacia.query.get_or_404(id)
     
     if farmacia.senha_hash:
-        return jsonify({'error': 'Farmácia já possui senha cadastrada'}), 400
+        return jsonify({'error': 'Farmacia ja possui senha cadastrada'}), 400
     
     farmacia.set_senha(senha)
     db.session.commit()
@@ -109,7 +101,6 @@ def definir_senha_farmacia(id):
 
 @app.route('/api/farmacias', methods=['POST'])
 def create_farmacia():
-    """Criar nova farmácia (apenas admin)"""
     data = request.get_json()
     
     farmacia = Farmacia(
@@ -118,8 +109,8 @@ def create_farmacia():
         telefone=data.get('telefone', ''),
         horario=data.get('horario', ''),
         plantao=data.get('plantao', False),
-        latitude=data.get('latitude'),      # ADICIONAR
-        longitude=data.get('longitude')     # ADICIONAR
+        latitude=data.get('latitude'),
+        longitude=data.get('longitude')
     )
     
     db.session.add(farmacia)
@@ -129,7 +120,6 @@ def create_farmacia():
 
 @app.route('/api/farmacias/<int:id>', methods=['PUT'])
 def update_farmacia(id):
-    """Atualizar farmácia"""
     farmacia = Farmacia.query.get_or_404(id)
     data = request.get_json()
     
@@ -139,9 +129,6 @@ def update_farmacia(id):
     farmacia.horario = data.get('horario', farmacia.horario)
     farmacia.plantao = data.get('plantao', farmacia.plantao)
     
-
-
-     # ADICIONE ESTAS LINHAS:
     if 'latitude' in data:
         farmacia.latitude = data['latitude']
     if 'longitude' in data:
@@ -152,17 +139,15 @@ def update_farmacia(id):
 
 @app.route('/api/farmacias/<int:id>', methods=['DELETE'])
 def delete_farmacia(id):
-    """Deletar farmácia"""
     farmacia = Farmacia.query.get_or_404(id)
     db.session.delete(farmacia)
     db.session.commit()
-    return jsonify({'message': 'Farmácia deletada com sucesso'})
+    return jsonify({'message': 'Farmacia deletada com sucesso'})
 
 # ==================== API DE PRODUTOS ====================
 
 @app.route('/api/produtos', methods=['GET'])
 def get_produtos():
-    """Listar produtos de uma farmácia específica"""
     farmacia_id = request.args.get('farmaciaId')
     
     if farmacia_id:
@@ -174,7 +159,6 @@ def get_produtos():
 
 @app.route('/api/produtos', methods=['POST'])
 def create_produto():
-    """Criar novo produto"""
     data = request.get_json()
     
     produto = Produto(
@@ -195,9 +179,8 @@ def create_produto():
     
     return jsonify(produto.to_dict()), 201
 
-@app.route('/api/produtos/<int:id>', methods=['PUT'])  # ← LINHA CORRIGIDA
+@app.route('/api/produtos/<int:id>', methods=['PUT'])
 def update_produto(id):
-    """Atualizar produto"""
     produto = Produto.query.get_or_404(id)
     data = request.get_json()
     
@@ -216,7 +199,6 @@ def update_produto(id):
 
 @app.route('/api/produtos/<int:id>', methods=['DELETE'])
 def delete_produto(id):
-    """Deletar produto"""
     produto = Produto.query.get_or_404(id)
     db.session.delete(produto)
     db.session.commit()
@@ -243,10 +225,10 @@ def create_hospital():
         telefone=data.get('telefone', ''),
         horario=data.get('horario', ''),
         servicos=data.get('servicos', ''),
-        latitude=data.get('latitude'),      # ADICIONAR
-        longitude=data.get('longitude')     # ADICIONAR
+        latitude=data.get('latitude'),
+        longitude=data.get('longitude')
     )
-        
+    
     db.session.add(hospital)
     db.session.commit()
     return jsonify(hospital.to_dict()), 201
@@ -255,18 +237,18 @@ def create_hospital():
 def update_hospital(id):
     hospital = Hospital.query.get_or_404(id)
     data = request.get_json()
+    
     hospital.nome = data.get('nome', hospital.nome)
     hospital.endereco = data.get('endereco', hospital.endereco)
     hospital.telefone = data.get('telefone', hospital.telefone)
     hospital.horario = data.get('horario', hospital.horario)
     hospital.servicos = data.get('servicos', hospital.servicos)
-
-     # ADICIONAR ESTAS LINHAS:
+    
     if 'latitude' in data:
         hospital.latitude = data['latitude']
     if 'longitude' in data:
         hospital.longitude = data['longitude']
-        
+    
     db.session.commit()
     return jsonify(hospital.to_dict())
 
@@ -277,7 +259,7 @@ def delete_hospital(id):
     db.session.commit()
     return jsonify({'message': 'Hospital deletado com sucesso'})
 
-# ==================== API DE CENTROS DE SAÚDE ====================
+# ==================== API DE CENTROS DE SAUDE ====================
 
 @app.route('/api/centros', methods=['GET'])
 def get_centros():
@@ -298,10 +280,10 @@ def create_centro():
         telefone=data.get('telefone', ''),
         horario=data.get('horario', ''),
         servicos=data.get('servicos', ''),
-        latitude=data.get('latitude'),      # ADICIONAR
-        longitude=data.get('longitude')     # ADICIONAR
+        latitude=data.get('latitude'),
+        longitude=data.get('longitude')
     )
-        
+    
     db.session.add(centro)
     db.session.commit()
     return jsonify(centro.to_dict()), 201
@@ -310,18 +292,18 @@ def create_centro():
 def update_centro(id):
     centro = CentroSaude.query.get_or_404(id)
     data = request.get_json()
+    
     centro.nome = data.get('nome', centro.nome)
     centro.endereco = data.get('endereco', centro.endereco)
     centro.telefone = data.get('telefone', centro.telefone)
     centro.horario = data.get('horario', centro.horario)
     centro.servicos = data.get('servicos', centro.servicos)
-
-     # ADICIONAR ESTAS LINHAS:
+    
     if 'latitude' in data:
         centro.latitude = data['latitude']
     if 'longitude' in data:
         centro.longitude = data['longitude']
-        
+    
     db.session.commit()
     return jsonify(centro.to_dict())
 
@@ -332,7 +314,7 @@ def delete_centro(id):
     db.session.commit()
     return jsonify({'message': 'Centro deletado com sucesso'})
 
-# ==================== API DE EMERGÊNCIAS ====================
+# ==================== API DE EMERGENCIAS ====================
 
 @app.route('/api/emergencias', methods=['GET'])
 def get_emergencias():
@@ -361,10 +343,12 @@ def create_emergencia():
 def update_emergencia(id):
     emergencia = Emergencia.query.get_or_404(id)
     data = request.get_json()
+    
     emergencia.nome = data.get('nome', emergencia.nome)
     emergencia.tipo = data.get('tipo', emergencia.tipo)
     emergencia.telefone = data.get('telefone', emergencia.telefone)
     emergencia.disponibilidade = data.get('disponibilidade', emergencia.disponibilidade)
+    
     db.session.commit()
     return jsonify(emergencia.to_dict())
 
@@ -375,7 +359,7 @@ def delete_emergencia(id):
     db.session.commit()
     return jsonify({'message': 'Contato deletado com sucesso'})
 
-# ==================== API DE ESTATÍSTICAS ====================
+# ==================== API DE ESTATISTICAS ====================
 
 @app.route('/api/estatisticas', methods=['GET'])
 def get_estatisticas():
@@ -405,13 +389,12 @@ def admin_login():
             'username': username
         })
     
-    return jsonify({'error': 'Credenciais inválidas'}), 401
+    return jsonify({'error': 'Credenciais invalidas'}), 401
 
-# ==================== API DE AVALIAÇÕES ====================
+# ==================== API DE AVALIACOES ====================
 
 @app.route('/api/avaliacoes', methods=['GET'])
 def get_avaliacoes():
-    """Listar avaliações aprovadas"""
     tipo = request.args.get('tipo', 'site')
     tipo_id = request.args.get('tipo_id')
     
@@ -426,7 +409,6 @@ def get_avaliacoes():
 @app.route('/api/avaliacoes/todas', methods=['GET'])
 @jwt_required()
 def get_todas_avaliacoes():
-    """Listar todas avaliações (apenas admin)"""
     tipo = request.args.get('tipo')
     query = Avaliacao.query
     
@@ -438,11 +420,10 @@ def get_todas_avaliacoes():
 
 @app.route('/api/avaliacoes', methods=['POST'])
 def criar_avaliacao():
-    """Criar nova avaliação"""
     data = request.get_json()
     
     if not data.get('nome') or not data.get('comentario'):
-        return jsonify({'error': 'Nome e comentário são obrigatórios'}), 400
+        return jsonify({'error': 'Nome e comentario sao obrigatorios'}), 400
     
     if not data.get('nota') or data['nota'] < 1 or data['nota'] > 5:
         return jsonify({'error': 'Nota deve ser entre 1 e 5'}), 400
@@ -463,17 +444,16 @@ def criar_avaliacao():
     db.session.add(avaliacao)
     db.session.commit()
     
-    return jsonify({'success': True, 'message': 'Avaliação enviada com sucesso!'}), 201
+    return jsonify({'success': True, 'message': 'Avaliacao enviada com sucesso!'}), 201
 
 @app.route('/api/avaliacoes/<int:id>/responder', methods=['POST'])
 @jwt_required()
 def responder_avaliacao(id):
-    """Responder a uma avaliação (admin)"""
     data = request.get_json()
     resposta = data.get('resposta')
     
     if not resposta:
-        return jsonify({'error': 'Resposta não pode ser vazia'}), 400
+        return jsonify({'error': 'Resposta nao pode ser vazia'}), 400
     
     avaliacao = Avaliacao.query.get_or_404(id)
     avaliacao.resposta = resposta
@@ -486,24 +466,21 @@ def responder_avaliacao(id):
 @app.route('/api/avaliacoes/<int:id>/aprovar', methods=['PUT'])
 @jwt_required()
 def aprovar_avaliacao(id):
-    """Aprovar avaliação (admin)"""
     avaliacao = Avaliacao.query.get_or_404(id)
     avaliacao.aprovado = True
     db.session.commit()
-    return jsonify({'success': True, 'message': 'Avaliação aprovada!'})
+    return jsonify({'success': True, 'message': 'Avaliacao aprovada!'})
 
 @app.route('/api/avaliacoes/<int:id>', methods=['DELETE'])
 @jwt_required()
 def deletar_avaliacao(id):
-    """Deletar avaliação (admin)"""
     avaliacao = Avaliacao.query.get_or_404(id)
     db.session.delete(avaliacao)
     db.session.commit()
-    return jsonify({'message': 'Avaliação deletada com sucesso'})
+    return jsonify({'message': 'Avaliacao deletada com sucesso'})
 
 @app.route('/api/avaliacoes/estatisticas', methods=['GET'])
 def get_estatisticas_avaliacoes():
-    """Estatísticas das avaliações"""
     tipo = request.args.get('tipo', 'site')
     tipo_id = request.args.get('tipo_id')
     
@@ -537,7 +514,6 @@ def get_estatisticas_avaliacoes():
 
 @app.route('/api/visitantes/registrar', methods=['POST'])
 def registrar_visita():
-    """Registrar visita à página"""
     data = request.get_json()
     
     ip = request.remote_addr
@@ -575,7 +551,6 @@ def registrar_visita():
 @app.route('/api/visitantes/estatisticas', methods=['GET'])
 @jwt_required()
 def get_estatisticas_visitantes():
-    """Obter estatísticas de visitantes (admin)"""
     dias = request.args.get('dias', 7, type=int)
     
     data_inicio = datetime.utcnow().date() - timedelta(days=dias)
@@ -604,7 +579,6 @@ def get_estatisticas_visitantes():
 @app.route('/api/visitantes/paginas', methods=['GET'])
 @jwt_required()
 def get_paginas_mais_acessadas():
-    """Páginas mais acessadas (admin)"""
     from sqlalchemy import func
     
     paginas = db.session.query(
@@ -614,29 +588,22 @@ def get_paginas_mais_acessadas():
     
     return jsonify([{'pagina': p[0], 'total': p[1]} for p in paginas])
 
-# ==================== API DE GEOCODIFICAÇÃO ====================
-
-# Cache para geocodificação (evita múltiplas requisições)
-geocode_cache = {}
+# ==================== API DE GEOCODIFICACAO ====================
 
 @app.route('/api/geocode', methods=['POST'])
 def geocode_endereco():
-    """Converter endereço em coordenadas"""
     data = request.get_json()
     endereco = data.get('endereco')
     
     if not endereco:
-        return jsonify({'error': 'Endereço não informado'}), 400
+        return jsonify({'error': 'Endereco nao informado'}), 400
     
-    # Verificar cache
     if endereco in geocode_cache:
         return jsonify(geocode_cache[endereco])
     
     try:
-        from geopy.geocoders import Nominatim
         geolocator = Nominatim(user_agent="saude_nampula")
-        # Adicionar "Nampula, Moçambique" para contexto
-        endereco_completo = f"{endereco}, Nampula, Moçambique"
+        endereco_completo = endereco + ", Nampula, Mocambique"
         location = geolocator.geocode(endereco_completo)
         
         if location:
@@ -645,11 +612,10 @@ def geocode_endereco():
                 'latitude': location.latitude,
                 'longitude': location.longitude
             }
-            # Salvar no cache
             geocode_cache[endereco] = resultado
             return jsonify(resultado)
         else:
-            return jsonify({'success': False, 'error': 'Endereço não encontrado'}), 404
+            return jsonify({'success': False, 'error': 'Endereco nao encontrado'}), 404
             
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
@@ -659,6 +625,3 @@ def geocode_endereco():
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(debug=False, host='0.0.0.0', port=port)
-
-
-tipo isso?
