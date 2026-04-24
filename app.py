@@ -117,7 +117,7 @@ def create_farmacia():
         endereco=data.get('endereco', ''),
         telefone=data.get('telefone', ''),
         horario=data.get('horario', ''),
-        plantao=data.get('plantao', False)
+        plantao=data.get('plantao', False),
         latitude=data.get('latitude'),      # ADICIONAR
         longitude=data.get('longitude')     # ADICIONAR
     )
@@ -242,16 +242,10 @@ def create_hospital():
         endereco=data.get('endereco', ''),
         telefone=data.get('telefone', ''),
         horario=data.get('horario', ''),
-        servicos=data.get('servicos', '')
+        servicos=data.get('servicos', ''),
         latitude=data.get('latitude'),      # ADICIONAR
         longitude=data.get('longitude')     # ADICIONAR
     )
-
-     # ADICIONAR ESTAS LINHAS:
-    if 'latitude' in data:
-        hospital.latitude = data['latitude']
-    if 'longitude' in data:
-        hospital.longitude = data['longitude']
         
     db.session.add(hospital)
     db.session.commit()
@@ -266,6 +260,13 @@ def update_hospital(id):
     hospital.telefone = data.get('telefone', hospital.telefone)
     hospital.horario = data.get('horario', hospital.horario)
     hospital.servicos = data.get('servicos', hospital.servicos)
+
+     # ADICIONAR ESTAS LINHAS:
+    if 'latitude' in data:
+        hospital.latitude = data['latitude']
+    if 'longitude' in data:
+        hospital.longitude = data['longitude']
+        
     db.session.commit()
     return jsonify(hospital.to_dict())
 
@@ -296,16 +297,10 @@ def create_centro():
         endereco=data.get('endereco', ''),
         telefone=data.get('telefone', ''),
         horario=data.get('horario', ''),
-        servicos=data.get('servicos', '')
+        servicos=data.get('servicos', ''),
         latitude=data.get('latitude'),      # ADICIONAR
         longitude=data.get('longitude')     # ADICIONAR
     )
-
-    # ADICIONAR ESTAS LINHAS:
-    if 'latitude' in data:
-        centro.latitude = data['latitude']
-    if 'longitude' in data:
-        centro.longitude = data['longitude']
         
     db.session.add(centro)
     db.session.commit()
@@ -320,6 +315,13 @@ def update_centro(id):
     centro.telefone = data.get('telefone', centro.telefone)
     centro.horario = data.get('horario', centro.horario)
     centro.servicos = data.get('servicos', centro.servicos)
+
+     # ADICIONAR ESTAS LINHAS:
+    if 'latitude' in data:
+        centro.latitude = data['latitude']
+    if 'longitude' in data:
+        centro.longitude = data['longitude']
+        
     db.session.commit()
     return jsonify(centro.to_dict())
 
