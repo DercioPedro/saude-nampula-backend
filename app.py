@@ -185,7 +185,7 @@ def create_produto():
     
     return jsonify(produto.to_dict()), 201
 
-@app.route('/api/produtos/<int:id>', methods(['PUT'])
+@app.route('/api/produtos/<int:id>', methods=['PUT'])  # ← LINHA CORRIGIDA
 def update_produto(id):
     """Atualizar produto"""
     produto = Produto.query.get_or_404(id)
