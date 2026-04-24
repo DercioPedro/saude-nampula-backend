@@ -586,6 +586,9 @@ def get_paginas_mais_acessadas():
 
 # ==================== API DE GEOCODIFICAÇÃO ====================
 
+# Cache para geocodificação (evita múltiplas requisições)
+geocode_cache = {}
+
 @app.route('/api/geocode', methods=['POST'])
 def geocode_endereco():
     """Converter endereço em coordenadas"""
@@ -600,6 +603,7 @@ def geocode_endereco():
         return jsonify(geocode_cache[endereco])
     
     try:
+        from geopy.geocoders import Nominatim
         geolocator = Nominatim(user_agent="saude_nampula")
         # Adicionar "Nampula, Moçambique" para contexto
         endereco_completo = f"{endereco}, Nampula, Moçambique"
