@@ -10,16 +10,23 @@ const app = express();
 const port = process.env.PORT || 3000;
 
 // ========== CONFIGURACOES ==========
-app.use(cors({
+// Configuração CORS correta
+const corsOptions = {
     origin: [
         'https://saude-nampula-c9az.vercel.app',
+        'https://saude-nampula-backend.onrender.com',
         'http://localhost:5500',
         'http://localhost:5501',
         'http://127.0.0.1:5500',
         'http://127.0.0.1:5501'
     ],
-    credentials: true
-}));
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization']
+};
+
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
 app.use(express.json());
 
 // ========== SUPABASE ==========
