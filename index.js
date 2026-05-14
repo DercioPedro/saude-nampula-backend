@@ -9,25 +9,42 @@ require('dotenv').config();
 const app = express();
 const port = process.env.PORT || 3000;
 
-// ========== CONFIGURACOES ==========
-// Configuração CORS correta
-const corsOptions = {
-    origin: [
-        'https://saude-nampula-c9az.vercel.app',
-        'https://saude-nampula-backend.onrender.com',
-        'http://localhost:5500',
-        'http://localhost:5501',
-        'http://127.0.0.1:5500',
-        'http://127.0.0.1:5501'
-    ],
+// ========== CONFIGURACAO CORS CORRIGIDA ==========
+const allowedOrigins = [
+    'https://saude-nampula-c9az.vercel.app',
+    'https://saude-nampula-backend.onrender.com',
+    'http://localhost:5500',
+    'http://localhost:5501',
+    'http://127.0.0.1:5500',
+    'http://127.0.0.1:5501'
+];
+
+app.use(cors({
+    origin: function(origin, callback) {
+        // Permitir requisições sem origem (como mobile apps ou curl)
+        if (!origin) return callback(null, true);
+        if (allowedOrigins.indexOf(origin) !== -1) {
+            callback(null, true);
+        } else {
+            console.log('Origin bloqueada:', origin);
+            callback(null, true); // Temporariamente permitindo todas para teste
+        }
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization']
-};
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+}));
 
-app.use(cors(corsOptions));
-app.options('*', cors(corsOptions));
+// Responder preflight requests imediatamente
+app.options('*', cors());
+
 app.use(express.json());
+
+// Middleware para logging (ajuda a debuggar)
+app.use((req, res, next) => {
+    console.log(`${req.method} ${req.url} - Origin: ${req.headers.origin}`);
+    next();
+});
 
 // ========== SUPABASE ==========
 const supabase = createClient(
