@@ -427,6 +427,74 @@ app.post('/api/geocode', async (req, res) => {
     }
 });
 
+
+
+// ==================== PUBLICACOES ====================
+
+// GET - Listar publicacoes (publico)
+app.get('/api/publicacoes', async (req, res) => {
+    const { categoria } = req.query;
+    let query = supabase.from('publicacoes').select('*').order('data', { ascending: false });
+    
+    // Se nao tiver token, mostrar apenas ativas
+    const authHeader = req.headers.authorization;
+    if (!authHeader) {
+        query = query.eq('ativo', true);
+    }
+    
+    if (categoria) {
+        query = query.eq('categoria', categoria);
+    }
+    
+    const { data, error } = await query;
+    if (error) return res.status(500).json({ error: error.message });
+    res.json(data);
+});
+
+// GET - Buscar uma publicacao
+app.get('/api/publicacoes/:id', async (req, res) => {
+    const { data, error } = await supabase.from('publicacoes').select('*').eq('id', req.params.id).single();
+    if (error) return res.status(404).json({ error: 'Publicacao nao encontrada' });
+    res.json(data);
+});
+
+// POST - Criar publicacao (admin)
+app.post('/api/publicacoes', authenticateJWT, async (req, res) => {
+    const { titulo, resumo, conteudo, categoria, autor, imagem } = req.body;
+    
+    if (!titulo || !resumo || !conteudo) {
+        return res.status(400).json({ error: 'Titulo, resumo e conteudo sao obrigatorios' });
+    }
+    
+    const { data, error } = await supabase.from('publicacoes').insert({
+        titulo: titulo,
+        resumo: resumo,
+        conteudo: conteudo,
+        categoria: categoria || 'Informacao',
+        autor: autor || 'Saude Nampula',
+        imagem: imagem || null,
+        ativo: true,
+        data: new Date()
+    }).select().single();
+    
+    if (error) return res.status(500).json({ error: error.message });
+    res.status(201).json(data);
+});
+
+// PUT - Atualizar publicacao (admin)
+app.put('/api/publicacoes/:id', authenticateJWT, async (req, res) => {
+    const { data, error } = await supabase.from('publicacoes').update(req.body).eq('id', req.params.id).select().single();
+    if (error) return res.status(500).json({ error: error.message });
+    res.json(data);
+});
+
+// DELETE - Deletar publicacao (admin)
+app.delete('/api/publicacoes/:id', authenticateJWT, async (req, res) => {
+    const { error } = await supabase.from('publicacoes').delete().eq('id', req.params.id);
+    if (error) return res.status(500).json({ error: error.message });
+    res.json({ message: 'Publicacao deletada com sucesso' });
+});
+
 // ==================== INICIAR SERVIDOR ====================
 
 app.listen(port, () => {
