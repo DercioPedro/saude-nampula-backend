@@ -382,23 +382,144 @@ app.get('/api/estatisticas', async (req, res) => {
 
 // ==================== VISITANTES ====================
 
+// ==================== VISITANTES (CONTADOR REAL) ====================
+
+// Registrar nova visita
 app.post('/api/visitantes/registrar', async (req, res) => {
-    const { sessao_id, pagina } = req.body;
+    const { visitante_id, pagina, data } = req.body;
     const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
-    const userAgent = req.headers['user-agent'];
-    
-    await supabase.from('visitantes').insert({ ip, pagina, user_agent: userAgent, sessao_id });
-    
-    const hoje = new Date().toISOString().split('T')[0];
-    const { data: estatistica } = await supabase.from('estatisticas_visitas').select('*').eq('data', hoje).single();
-    
-    if (estatistica) {
-        await supabase.from('estatisticas_visitas').update({ visualizacoes: (estatistica.visualizacoes || 0) + 1 }).eq('data', hoje);
-    } else {
-        await supabase.from('estatisticas_visitas').insert({ data: hoje, visualizacoes: 1 });
+
+    try {
+        // Verificar se o visitante já existe hoje
+        const { data: existing } = await supabase
+            .from('visitantes_contador')
+            .select('*')
+            .eq('data', data)
+            .single();
+
+        if (existing) {
+            // Atualizar contador existente
+            const { error } = await supabase
+                .from('visitantes_contador')
+                .update({
+                    visitantes: existing.visitantes + 1,
+                    visualizacoes: existing.visualizacoes + 1
+                })
+                .eq('data', data);
+
+            if (error) throw error;
+        } else {
+            // Criar novo registro
+            const { error } = await supabase
+                .from('visitantes_contador')
+                .insert({
+                    data: data,
+                    visitantes: 1,
+                    visualizacoes: 1
+                });
+
+            if (error) throw error;
+        }
+
+        res.json({ success: true });
+
+    } catch (error) {
+        console.error('Erro ao registrar visita:', error);
+        res.status(500).json({ error: error.message });
     }
-    
-    res.json({ success: true });
+});
+
+// Registrar visualização de página
+app.post('/api/visitantes/visualizacao', async (req, res) => {
+    const { data, pagina } = req.body;
+
+    try {
+        const { data: existing } = await supabase
+            .from('visitantes_contador')
+            .select('*')
+            .eq('data', data)
+            .single();
+
+        if (existing) {
+            const { error } = await supabase
+                .from('visitantes_contador')
+                .update({
+                    visualizacoes: existing.visualizacoes + 1
+                })
+                .eq('data', data);
+
+            if (error) throw error;
+        }
+
+        res.json({ success: true });
+
+    } catch (error) {
+        console.error('Erro ao registrar visualização:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Obter total de visitantes
+app.get('/api/visitantes/total', async (req, res) => {
+    try {
+        const { data, error } = await supabase
+            .from('visitantes_contador')
+            .select('visitantes')
+            .order('data', { ascending: false })
+            .limit(30);
+
+        if (error) throw error;
+
+        // Soma dos visitantes dos últimos 30 dias
+        let total = 0;
+        if (data) {
+            for (const row of data) {
+                total += row.visitantes || 0;
+            }
+        }
+
+        res.json({ total: total });
+
+    } catch (error) {
+        console.error('Erro ao obter total:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Obter estatísticas detalhadas (admin)
+app.get('/api/visitantes/estatisticas', authenticateJWT, async (req, res) => {
+    try {
+        const { data, error } = await supabase
+            .from('visitantes_contador')
+            .select('*')
+            .order('data', { ascending: false })
+            .limit(30);
+
+        if (error) throw error;
+
+        let totalVisitantes = 0;
+        let totalVisualizacoes = 0;
+        let visitantesUnicos = 0;
+
+        if (data) {
+            for (const row of data) {
+                totalVisitantes += row.visitantes || 0;
+                totalVisualizacoes += row.visualizacoes || 0;
+                visitantesUnicos += row.unique_visitors || 0;
+            }
+        }
+
+        res.json({
+            total: totalVisitantes,
+            visualizacoes: totalVisualizacoes,
+            unicos: visitantesUnicos,
+            dias: data || []
+        });
+
+    } catch (error) {
+        console.error('Erro ao obter estatísticas:', error);
+        res.status(500).json({ error: error.message });
+    }
 });
 
 // ==================== GEOCODIFICACAO ====================
